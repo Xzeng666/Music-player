@@ -1,0 +1,29 @@
+<RCC>
+    <qresource prefix="/Icon">
+        <file>Icon/list.png</file>
+        <file>Icon/loop.png</file>
+        <file>Icon/next.png</file>
+        <file>Icon/order.png</file>
+        <file>Icon/play.png</file>
+        <file>Icon/prev.png</file>
+        <file>Icon/random.png</file>
+        <file>Icon/stop.png</file>
+    </qresource>
+    <qresource prefix="/Music">
+        <file>Music/Embers.mp3</file>
+        <file>Music/Mood (Lil Ghost RemixExplicit).mp3</file>
+        <file>Music/カタオモイ-Aimer.mp3</file>
+        <file>Music/稻香-周杰伦.mp3</file>
+    </qresource>
+    <qresource prefix="/Images">
+        <file>images/background (1).jpg</file>
+        <file>images/background (2).jpg</file>
+        <file>images/background (3).jpg</file>
+        <file>images/background (4).jpg</file>
+        <file>images/background (5).jpg</file>
+        <file>images/background (6).jpg</file>
+        <file>images/background (7).jpg</file>
+        <file>images/background (8).jpg</file>
+        <file>images/background (9).jpg</file>
+    </qresource>
+</RCC>
