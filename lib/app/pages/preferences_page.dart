@@ -24,7 +24,7 @@ class PreferencesPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('偏好与隐私', style: Theme.of(context).textTheme.displaySmall),
+                Text('设置与偏好', style: Theme.of(context).textTheme.displaySmall),
                 const SizedBox(height: 8),
                 const Text('所有行为与标签分值默认只保存在当前设备。'),
               ],
@@ -34,6 +34,10 @@ class PreferencesPage extends StatelessWidget {
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           sliver: SliverToBoxAdapter(child: _ReadinessCard(profile: profile)),
+        ),
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(24, 20, 24, 0),
+          sliver: SliverToBoxAdapter(child: _CacheSettingsCard()),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
@@ -160,6 +164,84 @@ class PreferencesPage extends StatelessWidget {
       'language:ko': '韩语',
     };
     return labels[tag] ?? tag.split(':').last;
+  }
+}
+
+class _CacheSettingsCard extends StatefulWidget {
+  const _CacheSettingsCard();
+
+  @override
+  State<_CacheSettingsCard> createState() => _CacheSettingsCardState();
+}
+
+class _CacheSettingsCardState extends State<_CacheSettingsCard> {
+  double? _draftValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = AppScope.of(context);
+    final current = _draftValue ?? controller.playbackCacheLimit.toDouble();
+    final label = current == 0 ? '关闭' : '${current.round()} 首';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                const Icon(Icons.cached_rounded),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '播放缓存',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text('只缓存许可明确且允许下载的音频。同一首再次播放会直接命中本地缓存；歌曲海网页结果不会进入缓存。'),
+            const SizedBox(height: 12),
+            Semantics(
+              label: '播放缓存数量上限，当前 $label',
+              slider: true,
+              child: Slider(
+                value: current,
+                min: 0,
+                max: 50,
+                divisions: 10,
+                label: label,
+                onChanged: (value) => setState(() => _draftValue = value),
+                onChangeEnd: (value) async {
+                  await controller.setPlaybackCacheLimit(value.round());
+                  if (mounted) setState(() => _draftValue = null);
+                },
+              ),
+            ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: <Widget>[
+                Text('当前已缓存 ${controller.cachedSongCount} 首'),
+                OutlinedButton.icon(
+                  onPressed: controller.cachedSongCount == 0
+                      ? null
+                      : controller.clearPlaybackCache,
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  label: const Text('清空缓存'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

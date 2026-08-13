@@ -30,9 +30,9 @@ class AppShell extends StatelessWidget {
       label: '音乐库',
     ),
     NavigationDestination(
-      icon: Icon(Icons.tune_outlined),
-      selectedIcon: Icon(Icons.tune),
-      label: '偏好',
+      icon: Icon(Icons.settings_outlined),
+      selectedIcon: Icon(Icons.settings),
+      label: '设置',
     ),
   ];
 
@@ -75,6 +75,22 @@ class AppShell extends StatelessWidget {
                       ? null
                       : controller.downloadProgress,
                 ),
+              ),
+            if (controller.isCaching)
+              Semantics(
+                liveRegion: true,
+                label: '正在缓存授权音频，${(controller.cacheProgress * 100).round()}%',
+                child: LinearProgressIndicator(
+                  value: controller.cacheProgress == 0
+                      ? null
+                      : controller.cacheProgress,
+                ),
+              ),
+            if (controller.isResolving)
+              Semantics(
+                liveRegion: true,
+                label: '正在匹配可播放的授权版本',
+                child: LinearProgressIndicator(),
               ),
             if (controller.transientMessage != null)
               _GlobalStatusBanner(
@@ -197,6 +213,7 @@ class _BrandMark extends StatelessWidget {
 
 String sourceLabel(MusicSourceKind source) => switch (source) {
   MusicSourceKind.local => '本地',
+  MusicSourceKind.gequhaiWeb => '歌曲海网页',
   MusicSourceKind.itunesPreview => '30 秒试听',
   MusicSourceKind.internetArchive => '开放音乐',
 };
@@ -205,4 +222,10 @@ IconData repeatIcon(PlaybackRepeatMode mode) => switch (mode) {
   PlaybackRepeatMode.off => Icons.repeat,
   PlaybackRepeatMode.all => Icons.repeat_on,
   PlaybackRepeatMode.one => Icons.repeat_one_on,
+};
+
+String repeatModeLabel(PlaybackRepeatMode mode) => switch (mode) {
+  PlaybackRepeatMode.off => '循环关闭',
+  PlaybackRepeatMode.all => '列表循环',
+  PlaybackRepeatMode.one => '单曲循环',
 };

@@ -9,6 +9,7 @@ import '../features/catalog/domain/song.dart';
 import '../features/catalog/domain/song_tagger.dart';
 import '../features/library/data/download_service.dart';
 import '../features/library/domain/library_repository.dart';
+import '../features/library/domain/playback_cache.dart';
 import '../features/playback/domain/player_service.dart';
 import '../features/recommendations/domain/listening_event.dart';
 import '../features/recommendations/domain/preference_profile.dart';
@@ -22,6 +23,7 @@ class AppController extends ChangeNotifier {
     required PlayerService player,
     required LibraryRepository libraryRepository,
     required DownloadService downloadService,
+    required PlaybackCache playbackCache,
     SongTagger tagger = const SongTagger(),
     RecommendationEngine recommendationEngine = const RecommendationEngine(),
     PreferenceProfileBuilder profileBuilder = const PreferenceProfileBuilder(),
@@ -29,6 +31,7 @@ class AppController extends ChangeNotifier {
        _player = player,
        _libraryRepository = libraryRepository,
        _downloadService = downloadService,
+       _playbackCache = playbackCache,
        _tagger = tagger,
        _recommendationEngine = recommendationEngine,
        _profileBuilder = profileBuilder {
@@ -62,6 +65,7 @@ class AppController extends ChangeNotifier {
   final PlayerService _player;
   final LibraryRepository _libraryRepository;
   final DownloadService _downloadService;
+  final PlaybackCache _playbackCache;
   final SongTagger _tagger;
   final RecommendationEngine _recommendationEngine;
   final PreferenceProfileBuilder _profileBuilder;
@@ -80,7 +84,10 @@ class AppController extends ChangeNotifier {
   bool isSearching = false;
   bool isImporting = false;
   bool isDownloading = false;
+  bool isCaching = false;
+  bool isResolving = false;
   double downloadProgress = 0;
+  double cacheProgress = 0;
   String searchQuery = '';
   String? searchError;
   String? playbackError;
@@ -88,6 +95,7 @@ class AppController extends ChangeNotifier {
   AppSection section = AppSection.discover;
   PlaybackRepeatMode repeatMode = PlaybackRepeatMode.off;
   bool shuffle = false;
+  int cachedSongCount = 0;
 
   bool get isPlaying => _player.isPlaying;
   Song? get currentSong => _player.currentSong;
@@ -95,6 +103,7 @@ class AppController extends ChangeNotifier {
   Duration? get duration => _duration;
   List<Song> get searchResults => List<Song>.unmodifiable(_searchResults);
   Set<String> get favoriteSongIds => _snapshot.favoriteSongIds;
+  int get playbackCacheLimit => _snapshot.playbackCacheLimit;
 
   List<Song> get librarySongs {
     final ids = <String>{
@@ -143,6 +152,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> initialize() async {
     _snapshot = await _libraryRepository.load();
+    cachedSongCount = await _playbackCache.enforceLimit(playbackCacheLimit);
     isInitialized = true;
     notifyListeners();
     await search('流行');
@@ -172,7 +182,7 @@ class AppController extends ChangeNotifier {
     isSearching = true;
     notifyListeners();
     try {
-      _searchResults = await _musicSource.search(normalized, limit: 24);
+      _searchResults = await _musicSource.search(normalized, limit: 50);
       if (_searchResults.isEmpty) {
         searchError = '没有找到可播放结果，试试“歌名 + 歌手”。';
       }
@@ -192,11 +202,22 @@ class AppController extends ChangeNotifier {
   Future<void> playSong(Song song, {List<Song>? queue}) async {
     playbackError = null;
     transientMessage = null;
+    if (isCaching || isResolving) {
+      transientMessage = '正在准备当前音频，请稍候。';
+      notifyListeners();
+      return;
+    }
     await _recordEarlySkipIfNeeded();
     try {
+      isResolving = true;
+      notifyListeners();
       final resolved = await _musicSource.resolve(song);
+      isResolving = false;
+      notifyListeners();
       _rememberSong(resolved);
-      _queue = queue ?? _searchResults;
+      _queue = (queue ?? _searchResults)
+          .where((item) => item.externalPageUrl == null)
+          .toList(growable: false);
       if (_queue.every((item) => item.id != resolved.id)) {
         _queue = <Song>[resolved, ..._queue];
       } else {
@@ -207,10 +228,44 @@ class AppController extends ChangeNotifier {
       _queueIndex = _queue.indexWhere((item) => item.id == resolved.id);
       _completedForCurrent = false;
       _position = Duration.zero;
-      await _player.play(resolved);
+      var playbackSong = resolved;
+      final shouldCache =
+          playbackCacheLimit > 0 &&
+          resolved.downloadAllowed &&
+          resolved.localPath == null &&
+          resolved.audioUrl != null;
+      if (shouldCache) {
+        isCaching = true;
+        cacheProgress = 0;
+        notifyListeners();
+        try {
+          playbackSong = await _playbackCache.prepare(
+            resolved,
+            maxEntries: playbackCacheLimit,
+            onProgress: (value) {
+              cacheProgress = value;
+              notifyListeners();
+            },
+          );
+          cachedSongCount = await _playbackCache.count();
+        } on PlaybackCacheException catch (error) {
+          transientMessage = error.message;
+        } finally {
+          isCaching = false;
+          cacheProgress = 0;
+          notifyListeners();
+        }
+      }
+      await _player.play(playbackSong);
       await _addEvent(resolved, ListeningEventType.playStarted);
+    } on CatalogException catch (error) {
+      playbackError = error.message;
+      notifyListeners();
     } on Object {
       playbackError = '无法播放这首歌曲，请检查网络或文件权限。';
+      notifyListeners();
+    } finally {
+      isResolving = false;
       notifyListeners();
     }
   }
@@ -362,7 +417,7 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> openGequbaoSearch([String? query]) async {
+  Future<void> openGequhaiSearch([String? query]) async {
     final term = (query ?? searchQuery).trim();
     if (term.isEmpty) {
       transientMessage = '请先输入歌曲或歌手名称。';
@@ -370,13 +425,48 @@ class AppController extends ChangeNotifier {
       return;
     }
     final uri = Uri.parse(
-      'https://www.gequbao.com/s/${Uri.encodeComponent(term)}',
+      'https://www.gequhai.com/s/${Uri.encodeComponent(term)}',
     );
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened) {
       transientMessage = '无法打开系统浏览器。';
       notifyListeners();
     }
+  }
+
+  Future<void> openSongPage(Song song) async {
+    final value = song.externalPageUrl;
+    if (value == null || value.isEmpty) {
+      transientMessage = '这条结果没有可打开的详情页。';
+      notifyListeners();
+      return;
+    }
+    final opened = await launchUrl(
+      Uri.parse(value),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened) {
+      transientMessage = '无法打开系统浏览器。';
+      notifyListeners();
+    }
+  }
+
+  Future<void> setPlaybackCacheLimit(int value) async {
+    final normalized = value.clamp(0, 50).toInt();
+    _snapshot = _snapshot.copyWith(playbackCacheLimit: normalized);
+    await _persist();
+    cachedSongCount = await _playbackCache.enforceLimit(normalized);
+    transientMessage = normalized == 0
+        ? '播放缓存已关闭，现有缓存已清理。'
+        : '播放缓存上限已设为 $normalized 首。';
+    notifyListeners();
+  }
+
+  Future<void> clearPlaybackCache() async {
+    await _playbackCache.clear();
+    cachedSongCount = 0;
+    transientMessage = '播放缓存已清理。';
+    notifyListeners();
   }
 
   Future<void> resetPreferences() async {

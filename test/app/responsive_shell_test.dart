@@ -6,6 +6,7 @@ import 'package:resonance_music/features/catalog/domain/music_source.dart';
 import 'package:resonance_music/features/catalog/domain/song.dart';
 import 'package:resonance_music/features/library/data/download_service.dart';
 import 'package:resonance_music/features/library/domain/library_repository.dart';
+import 'package:resonance_music/features/library/domain/playback_cache.dart';
 import 'package:resonance_music/features/playback/domain/player_service.dart';
 
 void main() {
@@ -72,11 +73,13 @@ void main() {
           tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
         );
 
+        final player = _FakePlayer();
         final controller = AppController(
           musicSource: _FakeSource(),
-          player: _FakePlayer(),
+          player: player,
           libraryRepository: _FakeRepository(),
           downloadService: DownloadService(),
+          playbackCache: _FakeCache(),
         );
         await tester.pumpWidget(ResonanceApp(controller: controller));
         await tester.pumpAndSettle();
@@ -107,6 +110,11 @@ void main() {
         await tester.tap(find.text('测试歌曲').first);
         await tester.pumpAndSettle();
         expect(find.byTooltip('下一首'), findsOneWidget);
+        expect(find.byTooltip('开启随机播放'), findsOneWidget);
+        expect(find.byTooltip('循环关闭，点击切换'), findsOneWidget);
+        await tester.tap(find.byTooltip('下一首'));
+        await tester.pumpAndSettle();
+        expect(player.song?.id, 'one');
         expect(tester.takeException(), isNull);
 
         await tester.tap(find.text('音乐库').last);
@@ -114,13 +122,46 @@ void main() {
         expect(find.text('我的音乐库'), findsOneWidget);
         expect(tester.takeException(), isNull);
 
-        await tester.tap(find.text('偏好').last);
+        await tester.tap(find.text('设置').last);
         await tester.pumpAndSettle();
-        expect(find.text('偏好与隐私'), findsOneWidget);
+        expect(find.text('设置与偏好'), findsOneWidget);
+        final settingsScrollable = find
+            .descendant(
+              of: find.byType(CustomScrollView).last,
+              matching: find.byType(Scrollable),
+            )
+            .first;
+        for (
+          var attempt = 0;
+          attempt < 6 && find.text('播放缓存').evaluate().isEmpty;
+          attempt++
+        ) {
+          await tester.drag(settingsScrollable, const Offset(0, -140));
+          await tester.pump();
+        }
+        expect(find.text('播放缓存'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );
   }
+}
+
+class _FakeCache implements PlaybackCache {
+  @override
+  Future<void> clear() async {}
+
+  @override
+  Future<int> count() async => 0;
+
+  @override
+  Future<int> enforceLimit(int maxEntries) async => 0;
+
+  @override
+  Future<Song> prepare(
+    Song song, {
+    required int maxEntries,
+    PlaybackCacheProgress? onProgress,
+  }) async => song;
 }
 
 class _FakeSource implements MusicSource {
@@ -135,6 +176,13 @@ class _FakeSource implements MusicSource {
 
   @override
   Future<List<Song>> search(String query, {int limit = 20}) async => <Song>[
+    const Song(
+      id: 'web-one',
+      title: '网页结果',
+      artist: '网页歌手',
+      source: MusicSourceKind.gequhaiWeb,
+      externalPageUrl: 'https://www.gequhai.com/play/1',
+    ),
     const Song(
       id: 'one',
       title: '测试歌曲',

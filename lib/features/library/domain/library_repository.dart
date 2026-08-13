@@ -8,6 +8,7 @@ class LibrarySnapshot {
     this.favoriteSongIds = const <String>{},
     this.events = const <ListeningEvent>[],
     this.downloadPaths = const <String, String>{},
+    this.playbackCacheLimit = 20,
   });
 
   final Map<String, Song> knownSongs;
@@ -15,6 +16,7 @@ class LibrarySnapshot {
   final Set<String> favoriteSongIds;
   final List<ListeningEvent> events;
   final Map<String, String> downloadPaths;
+  final int playbackCacheLimit;
 
   LibrarySnapshot copyWith({
     Map<String, Song>? knownSongs,
@@ -22,12 +24,14 @@ class LibrarySnapshot {
     Set<String>? favoriteSongIds,
     List<ListeningEvent>? events,
     Map<String, String>? downloadPaths,
+    int? playbackCacheLimit,
   }) => LibrarySnapshot(
     knownSongs: knownSongs ?? this.knownSongs,
     localSongIds: localSongIds ?? this.localSongIds,
     favoriteSongIds: favoriteSongIds ?? this.favoriteSongIds,
     events: events ?? this.events,
     downloadPaths: downloadPaths ?? this.downloadPaths,
+    playbackCacheLimit: playbackCacheLimit ?? this.playbackCacheLimit,
   );
 }
 

@@ -7,7 +7,6 @@ Flutter 提供同一套 Dart UI 和领域代码，并由官方工具生成 Windo
 ```text
 lib/
 ├── app/                  # 主题、路由、响应式壳
-├── core/                 # 错误、通用组件、设计 token
 ├── features/
 │   ├── catalog/          # Song、标签器、MusicSource
 │   ├── playback/         # 播放队列和跨平台 PlayerService
@@ -26,12 +25,16 @@ flowchart LR
   APP --> REPO["Library / preference repositories"]
   REPO --> LOCAL["On-device persistence"]
   APP --> SOURCE["MusicSource port"]
+  SOURCE --> GEQUHAI["Gequhai public result-page adapter"]
   SOURCE --> ITUNES["iTunes Preview adapter"]
+  SOURCE --> ARCHIVE["Internet Archive adapter"]
   SOURCE --> FILES["Local file adapter"]
   SOURCE --> FUTURE["Authorized future provider"]
 ```
 
-网页结构或防护策略不进入领域层。第三方来源发生变化时只替换适配器。歌曲宝没有公开 API 且拒绝程序请求，因此仅通过系统浏览器执行用户可见的搜索，不承担媒体解析或下载。
+网页结构不进入领域层。`GequhaiMusicSource` 只解析公开搜索页 `#myTables` 的序号、歌名、歌手和详情页；它不调用私有 `/api/music`，不返回可播放地址或完整歌词。点击该结果时，`CompositeMusicSource` 以规范化后的歌名和歌手打分，仅选择达到严格阈值的 iTunes Preview 或 Internet Archive 候选；不命中时在应用内报错，不跳转网页。
+
+`DevicePlaybackCache` 位于应用支持目录的独立 `playback-cache` 中，仅接受 `downloadAllowed=true` 的条目。文件名使用歌曲 ID 的 SHA-256，最后修改时间作为 LRU 访问时间；设置上限为 0–50 首，下调上限时立即裁剪。
 
 ## 推荐公式
 

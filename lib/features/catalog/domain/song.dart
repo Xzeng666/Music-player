@@ -1,4 +1,4 @@
-enum MusicSourceKind { local, itunesPreview, internetArchive }
+enum MusicSourceKind { local, gequhaiWeb, itunesPreview, internetArchive }
 
 class SongTag {
   const SongTag({required this.name, required this.confidence});
@@ -26,6 +26,7 @@ class Song {
     this.album,
     this.artworkUrl,
     this.audioUrl,
+    this.externalPageUrl,
     this.localPath,
     this.duration,
     this.releaseDate,
@@ -40,6 +41,7 @@ class Song {
   final String? album;
   final String? artworkUrl;
   final String? audioUrl;
+  final String? externalPageUrl;
   final String? localPath;
   final Duration? duration;
   final DateTime? releaseDate;
@@ -54,6 +56,7 @@ class Song {
   Song copyWith({
     String? artworkUrl,
     String? audioUrl,
+    String? externalPageUrl,
     String? localPath,
     Duration? duration,
     List<SongTag>? tags,
@@ -66,6 +69,7 @@ class Song {
     album: album,
     artworkUrl: artworkUrl ?? this.artworkUrl,
     audioUrl: audioUrl ?? this.audioUrl,
+    externalPageUrl: externalPageUrl ?? this.externalPageUrl,
     localPath: localPath ?? this.localPath,
     duration: duration ?? this.duration,
     releaseDate: releaseDate,
@@ -82,6 +86,7 @@ class Song {
     'album': album,
     'artworkUrl': artworkUrl,
     'audioUrl': audioUrl,
+    'externalPageUrl': externalPageUrl,
     'localPath': localPath,
     'durationMs': duration?.inMilliseconds,
     'releaseDate': releaseDate?.toIso8601String(),
@@ -98,6 +103,7 @@ class Song {
     album: json['album'] as String?,
     artworkUrl: json['artworkUrl'] as String?,
     audioUrl: json['audioUrl'] as String?,
+    externalPageUrl: json['externalPageUrl'] as String?,
     localPath: json['localPath'] as String?,
     duration: json['durationMs'] == null
         ? null

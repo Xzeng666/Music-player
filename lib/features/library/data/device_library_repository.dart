@@ -42,6 +42,12 @@ class DeviceLibraryRepository implements LibraryRepository {
             (json['downloadPaths'] as Map<String, Object?>? ??
                     const <String, Object?>{})
                 .map((key, value) => MapEntry(key, '$value')),
+        playbackCacheLimit:
+            (json['playbackCacheLimit'] as num?)
+                ?.toInt()
+                .clamp(0, 50)
+                .toInt() ??
+            20,
       );
     } on Object {
       return const LibrarySnapshot();
@@ -57,6 +63,7 @@ class DeviceLibraryRepository implements LibraryRepository {
       'favoriteSongIds': snapshot.favoriteSongIds.toList(),
       'events': snapshot.events.map((event) => event.toJson()).toList(),
       'downloadPaths': snapshot.downloadPaths,
+      'playbackCacheLimit': snapshot.playbackCacheLimit,
     };
     await preferences.setString(_snapshotKey, jsonEncode(json));
   }

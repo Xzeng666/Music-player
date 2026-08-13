@@ -8,26 +8,29 @@
 
 - 自适应导航：手机底部导航，桌面侧边导航，兼容 375–1440+ 宽度；
 - 本地音频导入、在线播放、播放/暂停、进度、上一首/下一首、随机、循环和音量；
+- 歌曲海公开搜索页的表格解析：完整保留序号、歌名、歌手和原详情页；
 - iTunes Search 的公开 30 秒试听；
 - Internet Archive 开放授权音乐搜索、在线播放和合规下载；
+- 对授权音频的 0–50 首 LRU 临时缓存，同曲再播不重复下载；
 - 收藏、本地音乐、授权下载和播放行为的设备端持久化；
 - 流派、情绪、能量、年代、语言、场景、来源多标签；
 - 完播、早退、收藏等行为加权，并按 45 天半衰期衰减；
 - “至少 8 个有效行为 + 6.0 置信度”的个性化启用阈值；
 - 标签匹配、新鲜度、重复惩罚、艺术家多样性和可读推荐原因；
 - 深色/浅色主题、44×44 最小触控目标、键盘焦点、读屏语义和 reduced motion；
-- 单元测试、静态检查及四平台 CI 构建配置。
+- 单元测试、静态检查及四平台 CI 构建配置；
+- 随机播放与循环模式统一为播放模式组，窄屏自适应独立成行。
 
 ## 在线来源与版权边界
 
 | 来源 | 搜索 | 在线播放 | 永久下载 | 说明 |
 | --- | --- | --- | --- | --- |
+| 歌曲海 | 是，解析公开结果表 | 应用内匹配授权来源 | 否 | 点击播放不跳转；不调用私有 `/api/music`、不抓取媒体或完整歌词 |
 | iTunes Search | 是 | 是 | 否 | 仅播放 Apple 返回的试听 URL |
 | Internet Archive | 是 | 是 | 仅开放许可证 | 只有 CC BY、公共领域或 CC0 条目显示下载入口 |
 | 本地文件 | — | 是 | — | 用户自行选择且应确保有权使用 |
-| 歌曲宝 | 浏览器跳转 | 不在客户端解析 | 不在客户端解析 | 无公开 API，程序请求返回 403；避免脆弱抓取和未经授权下载 |
 
-歌曲宝入口会打开：`https://www.gequbao.com/s/<用户关键词>`。项目不会绕过网站保护、抓取网页媒体地址或把第三方预览伪装为完整歌曲。若未来获得正式授权 API，只需新增一个 `MusicSource` 适配器。
+歌曲海搜索使用 `https://www.gequhai.com/s/<用户关键词>`，并仅解析 `#myTables` 中的公开元数据。点击播放会按“歌名 + 歌手”在 iTunes Preview 和 Internet Archive 中进行严格匹配，全程留在应用内；只有独立的“查看原页”按钮会由用户主动打开网页。项目不会固化其私有媒体解析端点、抓取完整歌词或将许可不明的内容加入缓存/下载。
 
 ## 架构
 
@@ -38,7 +41,7 @@ application (AppController / use cases)
         ↓
 domain (Song / tags / preference / recommendation)
         ↑
-data & infrastructure (sources / persistence / audioplayers / downloads)
+data & infrastructure (sources / persistence / audioplayers / LRU cache / downloads)
 ```
 
 主要目录：
@@ -110,11 +113,12 @@ Windows 只能构建 Windows/Android；Ubuntu 构建需要 Linux；iOS 必须在
 2026-08-14 在 Windows 10 22H2、Flutter 3.47.0、Dart 3.13.0、Visual Studio Community 2026 环境完成：
 
 - `flutter analyze --no-pub`：0 问题；
-- `flutter test --no-pub`：10 项测试全部通过；
+- `flutter test --no-pub`：17 项测试全部通过；
 - 覆盖 375×812、812×375、768×1024、1440×900、深浅主题、2×系统字体和 reduced motion；
 - `flutter build windows --release --no-pub`：成功；
 - 产物：`build/windows/x64/runner/Release/resonance_music.exe`；
 - release 可执行文件冷启动冒烟测试通过，进程保持运行且窗口线程可响应。
+- 歌曲海“稻香”联网冒烟验证解析出 10 条结果，首条为“稻香 · 周杰伦 · `/play/333`”；点击播放的真实匹配链路在应用内命中“iTunes Preview · 稻香 · 周杰伦”。
 
 ## 推荐如何工作
 
@@ -125,7 +129,7 @@ Windows 只能构建 Windows/Android；Ubuntu 构建需要 Linux；iOS 必须在
 5. 达到阈值后使用标签匹配，并对最近播放和同艺术家过度集中进行惩罚。
 6. 每个结果展示贡献最大的标签，例如“因为你偏爱流行 · 高能量”。
 
-用户可以在“偏好”页查看学习进度与标签分值，并重置行为数据。重置不会删除收藏、本地文件或授权下载。
+用户可以在“设置”页查看学习进度与标签分值、设置缓存上限，并重置行为数据。重置不会删除收藏、本地文件或授权下载。
 
 ## 隐私
 
@@ -137,6 +141,7 @@ Windows 只能构建 Windows/Android；Ubuntu 构建需要 Linux；iOS 必须在
 ## 已知限制
 
 - iTunes 结果是约 30 秒试听，不是完整曲目；
+- 歌曲海条目的音频/完整歌词许可无法验证；客户端会尝试匹配合规来源，但不保证每个结果都有可播放版本；
 - Internet Archive 元数据质量不一致，部分条目可能没有可解析 MP3；
 - iOS 使用 `--no-codesign` 构建；Android 当前沿用 Flutter 模板的调试签名生成 release APK，仅用于 CI 验证，正式上架前必须配置发行方密钥；
 - 本地文件元数据目前从文件名生成，后续可增加跨平台 ID3 解析器；

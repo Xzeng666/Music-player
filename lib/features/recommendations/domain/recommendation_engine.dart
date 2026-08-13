@@ -101,6 +101,7 @@ class RecommendationEngine {
     MusicSourceKind.local => 0.4,
     MusicSourceKind.internetArchive => 0.3,
     MusicSourceKind.itunesPreview => 0.2,
+    MusicSourceKind.gequhaiWeb => 0.05,
   };
 
   String _friendlyTag(String tag) {

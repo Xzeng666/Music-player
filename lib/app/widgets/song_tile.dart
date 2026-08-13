@@ -6,20 +6,31 @@ import '../app_shell.dart';
 import 'song_artwork.dart';
 
 class SongTile extends StatelessWidget {
-  const SongTile({required this.song, this.queue, this.subtitle, super.key});
+  const SongTile({
+    required this.song,
+    this.queue,
+    this.subtitle,
+    this.position,
+    super.key,
+  });
 
   final Song song;
   final List<Song>? queue;
   final String? subtitle;
+  final int? position;
 
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final isFavorite = controller.favoriteSongIds.contains(song.id);
     final isCurrent = controller.currentSong?.id == song.id;
+    final needsMatch = !song.isPlayable && song.externalPageUrl != null;
+    final playbackBusy = controller.isResolving || controller.isCaching;
     return Semantics(
       button: true,
-      label: '播放 ${song.title}，${song.artist}',
+      label: needsMatch
+          ? '匹配并播放 ${song.title}，${song.artist}'
+          : '播放 ${song.title}，${song.artist}',
       child: Card(
         color: isCurrent
             ? Theme.of(
@@ -28,11 +39,24 @@ class SongTile extends StatelessWidget {
             : null,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => controller.playSong(song, queue: queue),
+          onTap: playbackBusy
+              ? null
+              : () => controller.playSong(song, queue: queue),
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Row(
               children: <Widget>[
+                if (position != null) ...<Widget>[
+                  SizedBox(
+                    width: 34,
+                    child: Text(
+                      '$position',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 SongArtwork(url: song.artworkUrl),
                 const SizedBox(width: 14),
                 Expanded(
@@ -65,10 +89,14 @@ class SongTile extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: '播放',
-                  onPressed: () => controller.playSong(song, queue: queue),
+                  tooltip: needsMatch ? '匹配并播放' : '播放',
+                  onPressed: playbackBusy
+                      ? null
+                      : () => controller.playSong(song, queue: queue),
                   icon: Icon(
-                    isCurrent && controller.isPlaying
+                    needsMatch
+                        ? Icons.manage_search_rounded
+                        : isCurrent && controller.isPlaying
                         ? Icons.equalizer_rounded
                         : Icons.play_arrow_rounded,
                   ),

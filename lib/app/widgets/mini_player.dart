@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../features/playback/domain/player_service.dart';
+import '../app_controller.dart';
 import '../app_scope.dart';
 import '../app_shell.dart';
 import 'song_artwork.dart';
@@ -20,6 +22,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final song = controller.currentSong!;
+    final playbackBusy = controller.isResolving || controller.isCaching;
     final durationMs = controller.duration?.inMilliseconds ?? 0;
     final positionMs = controller.position.inMilliseconds.clamp(0, durationMs);
 
@@ -74,23 +77,11 @@ class _MiniPlayerState extends State<MiniPlayer> {
                       ],
                     ),
                   ),
-                  if (!widget.compact) ...<Widget>[
-                    IconButton(
-                      tooltip: controller.shuffle ? '关闭随机播放' : '随机播放',
-                      onPressed: controller.toggleShuffle,
-                      icon: Icon(
-                        Icons.shuffle,
-                        color: controller.shuffle
-                            ? Theme.of(context).colorScheme.primary
-                            : null,
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: '上一首',
-                      onPressed: controller.previous,
-                      icon: const Icon(Icons.skip_previous_rounded),
-                    ),
-                  ],
+                  IconButton(
+                    tooltip: '上一首',
+                    onPressed: playbackBusy ? null : controller.previous,
+                    icon: const Icon(Icons.skip_previous_rounded),
+                  ),
                   Semantics(
                     button: true,
                     label: controller.isPlaying ? '暂停' : '播放',
@@ -105,15 +96,12 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   ),
                   IconButton(
                     tooltip: '下一首',
-                    onPressed: controller.next,
+                    onPressed: playbackBusy ? null : controller.next,
                     icon: const Icon(Icons.skip_next_rounded),
                   ),
                   if (!widget.compact) ...<Widget>[
-                    IconButton(
-                      tooltip: '切换循环模式',
-                      onPressed: controller.cycleRepeatMode,
-                      icon: Icon(repeatIcon(controller.repeatMode)),
-                    ),
+                    const SizedBox(width: 8),
+                    _PlaybackModeGroup(controller: controller),
                     const SizedBox(width: 6),
                     const Icon(Icons.volume_down_rounded, size: 20),
                     SizedBox(
@@ -129,6 +117,21 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   ],
                 ],
               ),
+              if (widget.compact)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: <Widget>[
+                      Text(
+                        '播放模式',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      const SizedBox(width: 10),
+                      _PlaybackModeGroup(controller: controller),
+                    ],
+                  ),
+                ),
               if (controller.playbackError != null)
                 Semantics(
                   liveRegion: true,
@@ -144,6 +147,52 @@ class _MiniPlayerState extends State<MiniPlayer> {
       ),
     );
   }
+}
+
+class _PlaybackModeGroup extends StatelessWidget {
+  const _PlaybackModeGroup({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        IconButton(
+          tooltip: controller.shuffle ? '关闭随机播放' : '开启随机播放',
+          onPressed: controller.toggleShuffle,
+          icon: Icon(
+            Icons.shuffle_rounded,
+            color: controller.shuffle
+                ? Theme.of(context).colorScheme.primary
+                : null,
+          ),
+        ),
+        SizedBox(
+          height: 32,
+          child: VerticalDivider(
+            width: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+        ),
+        IconButton(
+          tooltip: '${repeatModeLabel(controller.repeatMode)}，点击切换',
+          onPressed: controller.cycleRepeatMode,
+          icon: Icon(
+            repeatIcon(controller.repeatMode),
+            color: controller.repeatMode == PlaybackRepeatMode.off
+                ? null
+                : Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _StatusLine extends StatelessWidget {

@@ -47,7 +47,7 @@ class _SearchPageState extends State<SearchPage> {
               children: <Widget>[
                 Text('搜索音乐', style: Theme.of(context).textTheme.displaySmall),
                 const SizedBox(height: 8),
-                const Text('试听来自 iTunes，开放授权曲目来自 Internet Archive。'),
+                const Text('歌曲海匹配优先完整列出；可直接播放的试听与开放音乐紧随其后。'),
                 const SizedBox(height: 22),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 760),
@@ -101,8 +101,8 @@ class _SearchPageState extends State<SearchPage> {
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
           sliver: SliverToBoxAdapter(
-            child: _GequbaoNotice(
-              onOpen: () => controller.openGequbaoSearch(_queryController.text),
+            child: _GequhaiNotice(
+              onOpen: () => controller.openGequhaiSearch(_queryController.text),
             ),
           ),
         ),
@@ -126,25 +126,54 @@ class _SearchPageState extends State<SearchPage> {
               ),
             ),
           )
-        else
+        else ...<Widget>[
+          if (controller.searchResults.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
+              sliver: SliverToBoxAdapter(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    Chip(
+                      avatar: const Icon(Icons.list_alt_rounded, size: 18),
+                      label: Text(
+                        '歌曲海 ${controller.searchResults.where((song) => song.externalPageUrl != null).length} 条',
+                      ),
+                    ),
+                    Chip(
+                      avatar: const Icon(Icons.play_circle_outline, size: 18),
+                      label: Text(
+                        '应用内来源 ${controller.searchResults.where((song) => song.externalPageUrl == null).length} 条',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
             sliver: SliverList.separated(
               itemCount: controller.searchResults.length,
               itemBuilder: (context, index) {
                 final song = controller.searchResults[index];
-                return SongTile(song: song, queue: controller.searchResults);
+                return SongTile(
+                  song: song,
+                  queue: controller.searchResults,
+                  position: index + 1,
+                );
               },
               separatorBuilder: (_, _) => const SizedBox(height: 8),
             ),
           ),
+        ],
       ],
     );
   }
 }
 
-class _GequbaoNotice extends StatelessWidget {
-  const _GequbaoNotice({required this.onOpen});
+class _GequhaiNotice extends StatelessWidget {
+  const _GequhaiNotice({required this.onOpen});
 
   final VoidCallback onOpen;
 
@@ -166,13 +195,13 @@ class _GequbaoNotice extends StatelessWidget {
             const SizedBox(
               width: 560,
               child: Text(
-                '歌曲宝未提供公开 API，且程序请求会被拒绝。为避免不稳定抓取和未经授权下载，仅在系统浏览器中打开用户主动发起的搜索。',
+                '歌曲海结果来自其公开搜索页。点击播放会在应用内按歌名和歌手匹配可播放来源，不会跳转；“查看原页”只是独立的用户主动操作。',
               ),
             ),
             OutlinedButton.icon(
               onPressed: onOpen,
               icon: const Icon(Icons.open_in_new),
-              label: const Text('用歌曲宝网页搜索'),
+              label: const Text('查看原页'),
             ),
           ],
         ),

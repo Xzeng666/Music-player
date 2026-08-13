@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../domain/music_source.dart';
@@ -35,7 +37,7 @@ class ItunesMusicSource implements MusicSource {
     if (normalized.isEmpty) return const <Song>[];
 
     try {
-      final response = await _dio.get<Map<String, Object?>>(
+      final response = await _dio.get<String>(
         '/search',
         queryParameters: <String, Object>{
           'term': normalized,
@@ -46,9 +48,10 @@ class ItunesMusicSource implements MusicSource {
           'lang': 'zh_cn',
           'explicit': 'No',
         },
+        options: Options(responseType: ResponseType.plain),
       );
-      final results =
-          response.data?['results'] as List<Object?>? ?? const <Object?>[];
+      final body = jsonDecode(response.data ?? '{}') as Map<String, Object?>;
+      final results = body['results'] as List<Object?>? ?? const <Object?>[];
       return results
           .whereType<Map<String, Object?>>()
           .map(_fromJson)
